@@ -2,6 +2,12 @@
 
 An end-to-end AI voice agent that qualifies CRM leads using the BANT framework, scores prospects, updates HubSpot, checks meeting availability, schedules qualified meetings, and sends confirmation emails.
 
+## 🎥 Project Demo
+
+**Loom Demo:** https://www.loom.com/share/708291dc1b7d4dcabace007593e9dc4c
+
+The demo shows the AI voice-agent qualification flow and the connected automation workflow.
+
 ## 🚀 Project Overview
 
 This project was built as an AI CRM Lead Qualification Voice Agent capstone using **Vapi + n8n** with integrations for **HubSpot CRM, Google Calendar, and Gmail**.
@@ -52,7 +58,7 @@ n8n Webhook / Workflow
 Evaluates the collected BANT information and returns the lead score and qualification status.
 
 ### `update_crm`
-Creates or updates the lead/contact record in HubSpot.
+Creates or updates the lead/contact in HubSpot.
 
 ### `check_calendar_slots`
 Retrieves available meeting slots for the requested date.
