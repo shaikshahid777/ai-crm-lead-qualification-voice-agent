@@ -1,0 +1,528 @@
+{
+  "name": "AI CRM Lead Qualification — Voice Agent Tools",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "vapi-tools",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "62f38775-3939-46a9-a5c9-f74a529955c0",
+      "name": "Tool Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        480
+      ],
+      "webhookId": "b78cec5f-944d-4ab6-8782-84b72e400bb3"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const root = $json.body || $json;\nlet name = '';\nlet toolCallId = '';\nlet args = {};\ntry {\n  if (root && root.message && Array.isArray(root.message.toolCalls) && root.message.toolCalls.length) {\n    const tc = root.message.toolCalls[0];\n    toolCallId = tc.id || '';\n    name = (tc.function && tc.function.name) || '';\n    let a = tc.function && tc.function.arguments;\n    if (typeof a === 'string') { try { a = JSON.parse(a); } catch (e) { a = {}; } }\n    args = a || {};\n  } else if (root && root.function) {\n    name = root.function.name || '';\n    let a = root.function.arguments;\n    if (typeof a === 'string') { try { a = JSON.parse(a); } catch (e) { a = {}; } }\n    args = a || {};\n    toolCallId = root.id || '';\n  } else {\n    name = root.function_name || root.functionName || root.name || '';\n    args = root.arguments || root.args || root || {};\n    toolCallId = root.toolCallId || root.tool_call_id || '';\n  }\n} catch (e) { args = {}; }\nconst g = (k) => (args && args[k] != null ? args[k] : '');\nreturn {\n  functionName: name,\n  toolCallId: toolCallId,\n  budget: g('budget'),\n  authority: g('authority'),\n  need: g('need'),\n  timeline: g('timeline'),\n  name: g('name'),\n  email: g('email'),\n  company: g('company'),\n  lead_score: g('lead_score'),\n  lead_id: g('lead_id'),\n  date: g('date'),\n  selected_slot: g('selected_slot'),\n  meeting_id: g('meeting_id'),\n};"
+      },
+      "id": "6ace6526-2ed9-4322-81aa-3f3f79217281",
+      "name": "Parse Tool Call",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.functionName }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "qualify_lead"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.functionName }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "update_crm"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.functionName }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "check_calendar_slots"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.functionName }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "schedule_meeting"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.functionName }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "send_confirmation"
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "unknown"
+        }
+      },
+      "id": "13e8c44b-3f78-4845-a4a0-2c89228173bf",
+      "name": "Route Tool",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        448,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const item = $json;\nconst parseBudget = (v) => {\n  if (v == null || v === '') return 0;\n  if (typeof v === 'number') return v;\n  const s = String(v).toLowerCase().replace(/[$,\\s]/g, '');\n  const km = s.match(/([0-9]*\\.?[0-9]+)\\s*k/);\n  if (km) return Math.round(parseFloat(km[1]) * 1000);\n  const m = s.match(/[0-9]*\\.?[0-9]+/);\n  return m ? parseFloat(m[0]) : 0;\n};\nconst parseTimelineMonths = (v) => {\n  if (v == null || v === '') return 999;\n  const s = String(v).toLowerCase();\n  if (/(asap|immediat|right now|now|today|this week|next week|urgent)/.test(s)) return 0.5;\n  let m;\n  m = s.match(/([0-9]*\\.?[0-9]+)\\s*(year|yr)/); if (m) return parseFloat(m[1]) * 12;\n  m = s.match(/([0-9]*\\.?[0-9]+)\\s*(month|mo)/); if (m) return parseFloat(m[1]);\n  m = s.match(/([0-9]*\\.?[0-9]+)\\s*(week|wk)/); if (m) return parseFloat(m[1]) / 4.345;\n  m = s.match(/([0-9]*\\.?[0-9]+)\\s*(day)/); if (m) return parseFloat(m[1]) / 30;\n  m = s.match(/[0-9]*\\.?[0-9]+/); if (m) return parseFloat(m[0]);\n  return 999;\n};\nconst budget = parseBudget(item.budget);\nconst months = parseTimelineMonths(item.timeline);\nlet score = 'Low';\nif (budget >= 5000 && months <= 3) score = 'High';\nelse if (budget >= 2000) score = 'Medium';\nconst qualified = score === 'High' || score === 'Medium';\nconst payload = { lead_score: score, qualified: qualified, budget_parsed: budget, timeline_months: Math.round(months * 100) / 100 };\nreturn { results: [{ toolCallId: item.toolCallId, result: JSON.stringify(payload) }] };"
+      },
+      "id": "e868395c-f0d0-46cb-ae38-684c3fa6f534",
+      "name": "Qualify Lead",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "d0dfc92f-a173-4125-bcfd-c519b347c059",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1120,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "appToken",
+        "email": "={{ $json.email }}",
+        "additionalFields": {
+          "companyName": "={{ $json.company }}",
+          "firstName": "={{ ($json.name || '').split(' ')[0] }}",
+          "lastName": "={{ ($json.name || '').split(' ').slice(1).join(' ') }}",
+          "message": "=Lead score: {{ $json.lead_score }}"
+        },
+        "options": {}
+      },
+      "id": "57e8138d-82be-45a4-9f83-a3b5f5d960c6",
+      "name": "Upsert HubSpot Contact",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2.2,
+      "position": [
+        672,
+        192
+      ],
+      "credentials": {
+        "hubspotAppToken": {
+          "id": "iYk9hP3wK0WGtmG8",
+          "name": "HubSpot Service Key account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const tc = $('Parse Tool Call').item.json.toolCallId;\nconst hs = $json;\nconst leadId = hs && hs.vid ? ('LD-' + hs.vid) : ('LD-' + Math.floor(Math.random() * 9000 + 1000));\nconst payload = { crm_status: 'success', lead_id: leadId };\nreturn { results: [{ toolCallId: tc, result: JSON.stringify(payload) }] };"
+      },
+      "id": "6ad9295d-a9d1-4f3e-a6d5-631b83e4fc05",
+      "name": "CRM Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const item = $json;\nlet base;\nconst d = String(item.date || '');\nif (/\\d{4}-\\d{2}-\\d{2}/.test(d)) {\n  base = d.slice(0, 10);\n} else {\n  base = new Date(Date.now() + 86400000).toISOString().slice(0, 10);\n}\nconst slots = [base + 'T10:00', base + 'T14:30', base + 'T16:00'];\nconst payload = { slots: slots };\nreturn { results: [{ toolCallId: item.toolCallId, result: JSON.stringify(payload) }] };"
+      },
+      "id": "f705b412-f472-4819-bf25-ed8e4a9cc3bd",
+      "name": "Check Calendar Slots",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "value": "shahidshaik3335@gmail.com",
+          "mode": "list",
+          "cachedResultName": "shahidshaik3335@gmail.com"
+        },
+        "start": "={{ $json.selected_slot }}",
+        "end": "={{ DateTime.fromISO($json.selected_slot).plus({ hours: 1 }).toISO() }}",
+        "additionalFields": {
+          "attendees": [
+            "={{ $json.email }}"
+          ],
+          "description": "=Lead: {{ $json.name }} ({{ $json.email }}) — {{ $json.company }}",
+          "summary": "=Consultation with {{ $json.name }}"
+        }
+      },
+      "id": "dcc60cbd-270a-4000-8924-7cf12cbdd988",
+      "name": "Create Calendar Event",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        672,
+        576
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "8OPd2cQbDSG5xifI",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const tc = $('Parse Tool Call').item.json.toolCallId;\nconst ev = $json;\nconst mid = ev && ev.id ? ('MTG-' + String(ev.id).slice(0, 8)) : ('MTG-' + Math.floor(Math.random() * 9000 + 1000));\nconst payload = { status: 'booked', meeting_id: mid, event_link: ev && ev.htmlLink ? ev.htmlLink : '' };\nreturn { results: [{ toolCallId: tc, result: JSON.stringify(payload) }] };"
+      },
+      "id": "613e52ff-d3f9-4419-a1cf-4fc0030fc695",
+      "name": "Schedule Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "Your consultation with Apex Business Solutions is confirmed",
+        "emailType": "text",
+        "message": "=Hi {{ $json.name }},\n\nYour consultation is confirmed. Reference: {{ $json.meeting_id }}.\n\nWe look forward to speaking with you.\n\nApex Business Solutions",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "1dce2f26-e67f-4aaf-a93d-758280e498e1",
+      "name": "Send Confirmation Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        672,
+        768
+      ],
+      "webhookId": "a18e8850-cf5e-427b-81fb-a6704d8dc524",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "yLM5CjMYRIEGCd2N",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const tc = $('Parse Tool Call').item.json.toolCallId;\nconst payload = { status: 'sent', channel: 'email' };\nreturn { results: [{ toolCallId: tc, result: JSON.stringify(payload) }] };"
+      },
+      "id": "94d1714d-bdb0-4b98-b230-a749ece2b5e7",
+      "name": "Confirmation Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        768
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const item = $json;\nconst payload = { error: 'unknown_tool', functionName: item.functionName || '' };\nreturn { results: [{ toolCallId: item.toolCallId, result: JSON.stringify(payload) }] };"
+      },
+      "id": "2eb18821-1bbd-441d-ab5e-bab2242197ed",
+      "name": "Unknown Tool",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        960
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Tool Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Tool Call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Tool Call": {
+      "main": [
+        [
+          {
+            "node": "Route Tool",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Tool": {
+      "main": [
+        [
+          {
+            "node": "Qualify Lead",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Upsert HubSpot Contact",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check Calendar Slots",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create Calendar Event",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Confirmation Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Unknown Tool",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qualify Lead": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert HubSpot Contact": {
+      "main": [
+        [
+          {
+            "node": "CRM Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CRM Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Calendar Slots": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Calendar Event": {
+      "main": [
+        [
+          {
+            "node": "Schedule Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Confirmation Email": {
+      "main": [
+        [
+          {
+            "node": "Confirmation Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirmation Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Unknown Tool": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "f2d429b7-0718-4c46-9084-cd3dd80e4976",
+  "meta": {
+    "instanceId": "201381d913fa9e78389f7093cb99cedc70c766251a500f897db19feccfda3bd0"
+  },
+  "nodeGroups": [],
+  "id": "2zaiteinI8VOqCnT",
+  "tags": []
+}
